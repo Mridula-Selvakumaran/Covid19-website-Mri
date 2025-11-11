@@ -14,8 +14,7 @@ def load_data():
     data = data[['continent', 'location', 'date', 'new_cases', 'new_deaths',
                  'total_cases', 'total_deaths', 'new_vaccinations', 'total_vaccinations']]
     data = data.rename(columns={'location': 'country'})
-    data[['new_cases', 'new_deaths', 'new_vaccinations']] = data[
-        ['new_cases', 'new_deaths', 'new_vaccinations']].fillna(0)
+    data[['new_cases', 'new_deaths', 'new_vaccinations']] = data[['new_cases', 'new_deaths', 'new_vaccinations']].fillna(0)
     return data
 
 data = load_data()
@@ -23,67 +22,49 @@ data = load_data()
 
 dailydata = data.copy()
 weeklydata = data.groupby(['country', pd.Grouper(key='date', freq='W')])[['new_cases', 'new_deaths', 'new_vaccinations']].sum().reset_index()
-monthlydata = data.groupby(['country', pd.Grouper(key='date', freq='ME')])[['new_cases', 'new_deaths', 'new_vaccinations']].sum().reset_index()
-continentdata = data.groupby(['continent', pd.Grouper(key='date', freq='ME')])['new_cases'].sum().reset_index()
+monthlydata = data.groupby(['country', pd.Grouper(key='date', freq='M')])[['new_cases', 'new_deaths', 'new_vaccinations']].sum().reset_index()
+continentdata = data.groupby(['continent', pd.Grouper(key='date', freq='M')])['new_cases'].sum().reset_index()
+
 
 st.sidebar.header("Filters")
 view = st.sidebar.radio("Choose a View", ["Daily Cases", "Weekly Vaccinations", "Monthly Cases by Continent", "Top 10 Countries Snapshot"])
-all_countries=sorted(data['country'].dropna().unique())
-default_countries=['United States','India','Brazil','Russia','United Kingdom']
+
+all_countries = sorted(data['country'].dropna().unique())
+default_countries = ['United States', 'India', 'Brazil', 'Russia', 'United Kingdom']
 countries = st.sidebar.multiselect("Select countries", options=all_countries, default=default_countries)
-available_continents=sorted(data['continent'].dropna().unique())
-default_continents=[i for i in ["Asia", "Europe", "Africa", "North America", "South America", "Oceania"] if i in available_continents]
+
+available_continents = sorted(data['continent'].dropna().unique())
+default_continents = [i for i in ["Asia", "Europe", "Africa", "North America", "South America", "Oceania"] if i in available_continents]
 continents = st.sidebar.multiselect("Select continents", options=available_continents, default=default_continents)
+
+
+def plot_timeseries(df, key_col, value_col, labels, title, ylabel):
+    fig, ax = plt.subplots(figsize=(12,6))
+    for label in labels:
+        subset = df[df[key_col] == label]
+        ax.plot(subset['date'], subset[value_col], label=label)
+    ax.set_title(title)
+    ax.set_xlabel("Date")
+    ax.set_ylabel(ylabel)
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    ax.tick_params(axis='x', rotation=45)
+    ax.grid(True)
+    ax.legend()
+    st.pyplot(fig)
 
 if view == "Daily Cases":
     st.title("Daily COVID-19 Cases")
-    fig, ax = plt.subplots(figsize=(12, 6))
-    for country in countries:
-        subset = dailydata[dailydata['country'] == country]
-        ax.plot(subset['date'], subset['new_cases'], label=country)
-    ax.set_title("Daily COVID-19 Cases")
-    ax.set_xlabel("Date")
-    ax.set_ylabel("New Cases")
-    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-    ax.tick_params(axis='x', rotation=45)
-    ax.grid(True)
-    ax.legend()
-    st.pyplot(fig)
+    plot_timeseries(dailydata, 'country', 'new_cases', countries, "Daily COVID-19 Cases", "New Cases")
 
 elif view == "Weekly Vaccinations":
     st.title("Weekly COVID-19 Vaccinations")
-    fig, ax = plt.subplots(figsize=(12, 6))
-    for country in countries:
-        subset = weeklydata[weeklydata['country'] == country]
-        ax.plot(subset['date'], subset['new_vaccinations'], label=country)
-    ax.set_title("Weekly Vaccinations")
-    ax.set_xlabel("Date")
-    ax.set_ylabel("New Vaccinations")
-    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-    ax.tick_params(axis='x', rotation=45)
-    ax.grid(True)
-    ax.legend()
-    st.pyplot(fig)
-
+    plot_timeseries(weeklydata, 'country', 'new_vaccinations', countries, "Weekly Vaccinations", "New Vaccinations")
 
 elif view == "Monthly Cases by Continent":
     st.title("Monthly COVID-19 Cases by Continent")
-    fig, ax = plt.subplots(figsize=(12, 6))
-    for continent in continents:
-        subset = continentdata[continentdata['continent'] == continent]
-        ax.plot(subset['date'], subset['new_cases'], label=continent)
-    ax.set_title("Monthly COVID-19 Cases by Continent")
-    ax.set_xlabel("Date")
-    ax.set_ylabel("New Cases")
-    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-    ax.tick_params(axis='x', rotation=45)
-    ax.grid(True)
-    ax.legend()
-    st.pyplot(fig)
-    
+    plot_timeseries(continentdata, 'continent', 'new_cases', continents, "Monthly COVID-19 Cases by Continent", "New Cases")
+
 elif view == "Top 10 Countries Snapshot":
     st.title("Top 10 Countries by Total Cases (Latest Data)")
     latest_date = data['date'].max()
